@@ -9,12 +9,14 @@ app.use(express.json());
 
 //Routes
 const users = require('./routes/users');
+const chat = require('./routes/chat');
 //
 
 
 
 //Initializing routes
 app.use('/users', users);
+app.use('/chat', chat);
 //
 
 
