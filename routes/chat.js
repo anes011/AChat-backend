@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-router.get('/myChat/:ownerId', (req, res) => {
-    const ownerId = req.params.ownerId;
+router.get('/myChat/:userId', (req, res) => {
+    const userId = req.params.userId;
 
-    pool.query('SELECT * FROM chat WHERE ownerId = $1', [ownerId],
+    pool.query('SELECT * FROM chat WHERE chatter_id = $1 OR receiver_id = $1', [userId],
         (error, results) => {
             if (error) {
                 res.status(500).json({
@@ -21,13 +21,13 @@ router.get('/myChat/:ownerId', (req, res) => {
 });
 
 router.post('/addToChat', (req, res) => {
-    const { ownerId, userId } = req.body;
+    const { chatterId, receiverId } = req.body;
 
-    //Checking if the user is already in the chat
-    //If he is, we throw an error, otherwise we add him to chat
-    pool.query(`SELECT * FROM chat WHERE ownerId = $1 AND userId = $2 OR userId = $1 AND 
-        ownerId = $2`,
-        [ownerId, userId], (error, results) => {
+    //Checking if both users are already in the chat
+    //If they are, we throw an error, otherwise we add them to chat
+    pool.query(`SELECT * FROM chat WHERE chatter_id = $1 AND 
+        receiver_id = $2 OR receiver_id = $1 AND chatter_id = $2`,
+        [chatterId, receiverId], (error, results) => {
             if (error) {
                 res.status(500).json({
                     Error: error.detail
@@ -39,8 +39,8 @@ router.post('/addToChat', (req, res) => {
                     Error: 'User already in chat!'
                 });
             } else {
-                pool.query('INSERT INTO chat (ownerId, userId) VALUES ($1, $2)',
-                    [ownerId, userId], (error, results) => {
+                pool.query('INSERT INTO chat (chatter_id, receiver_id) VALUES ($1, $2)',
+                    [chatterId, receiverId], (error, results) => {
                         if (error) {
                             res.status(500).json({
                                 Error: error.detail
