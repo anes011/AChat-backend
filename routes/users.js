@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const bcrypt = require('bcrypt');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multer = require('multer');
 
 router.get('/allUsers', (req, res) => {
     pool.query('SELECT * FROM users', (error, results) => {
@@ -18,13 +21,32 @@ router.get('/allUsers', (req, res) => {
     });
 });
 
-router.post('/addUser', (req, res) => {
-    const { name, email, password, phone_number } = req.body;
+//Cloudinary config
+cloudinary.config({ 
+    cloud_name: 'dlhjhg5yh', 
+    api_key: '887992126494528', 
+    api_secret: 'Jc9ZOx2UIVJEtfnb36w5hcGlb2I' 
+});
 
-    bcrypt.hash(password, 10, function(err, hash) {
-        pool.query(`INSERT INTO users (name, email, password, phone_number) 
-            VALUES ($1, $2, $3, $4)`, [name, email, hash, 
-            phone_number], (error, results) => {
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary
+});
+
+const upload = multer({ storage: storage });
+//
+
+router.post('/addUser', upload.single('photo'), (req, res) => {
+    const user = {
+        name: req.body.name,
+        email: req.body.email,
+        password: req.body.password,
+        phone_number: req.body.phone_number,
+        photo: req.file.path
+    };
+
+    bcrypt.hash(user.password, 10, function(err, hash) {
+        pool.query(`INSERT INTO users (name, email, password, phone_number, photo) 
+            VALUES ($1, $2, $3, $4, $5)`, [user.name, user.email, hash, user.phone_number, user.photo], (error, results) => {
             if (error) {
                 res.status(500).json({
                     Error: error.detail
