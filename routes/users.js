@@ -36,25 +36,28 @@ const upload = multer({ storage: storage });
 //
 
 router.post('/addUser', upload.single('photo'), (req, res) => {
-    const user = {
+    const user = ({
         name: req.body.name,
         email: req.body.email,
         password: req.body.password,
         phone_number: req.body.phone_number,
         photo: req.file.path
-    };
+    });
 
     bcrypt.hash(user.password, 10, function(err, hash) {
-        pool.query(`INSERT INTO users (name, email, password, phone_number, photo) 
-            VALUES ($1, $2, $3, $4, $5)`, [user.name, user.email, hash, user.phone_number, user.photo], (error, results) => {
+        pool.query(`INSERT INTO users (name, email, password, 
+            phone_number, photo) VALUES ($1, $2, $3, $4, $5) RETURNING *`, 
+            [user.name, user.email, hash, user.phone_number, user.photo], 
+            (error, results) => {
             if (error) {
                 res.status(500).json({
                     Error: error.detail
-                });
-            };
+                })
+            }
             
             res.status(201).json({
-                Success: 'User added successfully!'
+                Success: 'User added successfully!',
+                user: results.rows[0]
             });
         });
     });
