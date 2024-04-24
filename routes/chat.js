@@ -21,7 +21,8 @@ router.get('/myChat/:userId', (req, res) => {
 });
 
 router.post('/addToChat', (req, res) => {
-    const { chatterId, receiverId } = req.body;
+    const { chatterId, receiverId, last_message, 
+    last_message_time } = req.body;
 
     //Checking if both users are already in the chat
     //If they are, we throw an error, otherwise we add them to chat
@@ -35,12 +36,15 @@ router.post('/addToChat', (req, res) => {
             };
 
             if (results.rows.length) {
-                res.status(500).json({
+                res.json({
                     Error: 'User already in chat!'
                 });
             } else {
-                pool.query('INSERT INTO chat (chatter_id, receiver_id) VALUES ($1, $2)',
-                    [chatterId, receiverId], (error, results) => {
+                pool.query(`INSERT INTO chat (chatter_id, receiver_id, 
+                    last_message, last_message_time) VALUES ($1, $2, $3, $4)
+                    RETURNING *`,
+                    [chatterId, receiverId, last_message, last_message_time], 
+                    (error, results) => {
                         if (error) {
                             res.status(500).json({
                                 Error: error.detail
@@ -48,7 +52,8 @@ router.post('/addToChat', (req, res) => {
                         };
 
                         res.status(201).json({
-                            Success: 'Chat created successfully!'
+                            Success: 'Chat created successfully!',
+                            chat: results.rows[0]
                         });
                     }
                 );

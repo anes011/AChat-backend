@@ -21,6 +21,41 @@ router.get('/allUsers', (req, res) => {
     });
 });
 
+router.get('/allUsersButMe/:id', (req, res) => {
+    const userId = req.params.id;
+
+    pool.query('SELECT * FROM users WHERE id != $1', [userId],
+        (err, results) => {
+        if (err) {
+            res.status(500).json({
+                Error: err.detail
+            });
+        };
+
+        res.status(200).json({
+            count: results.rows.length,
+            users: results.rows
+        });
+    });
+});
+
+router.get('/userById/:id', (req, res) => {
+    const userId = req.params.id;
+
+    pool.query('SELECT * FROM users WHERE id = $1', [userId],
+    (error, results) => {
+        if (error) {
+            res.status(500).json({
+                Error: error.detail
+            });
+        };
+
+        res.status(200).json({
+            user: results.rows[0]
+        });
+    });
+});
+
 //Cloudinary config
 cloudinary.config({ 
     cloud_name: 'dlhjhg5yh', 
@@ -97,11 +132,11 @@ router.post('/login', (req, res) => {
     );
 });
 
-router.put('/changePhoto/:id', (req, res) => {
+router.put('/changePhoto/:id', upload.single('photo'), (req, res) => {
     const userId = req.params.id;
-    const { photo } = req.body;
+    const photo = req.file.path;
 
-    pool.query('UPDATE users SET photo = $1 WHERE id = $2', [photo, userId],
+    pool.query('UPDATE users SET photo = $1 WHERE id = $2 RETURNING *', [photo, userId],
         (error, results) => {
             if (error) {
                 res.status(500).json({
@@ -110,7 +145,8 @@ router.put('/changePhoto/:id', (req, res) => {
             };
 
             res.json({
-                Success: 'User photo updated successfully!'
+                Success: 'User photo updated successfully!',
+                update: results.rows[0]
             });
         }
     );
