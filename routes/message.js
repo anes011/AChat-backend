@@ -2,13 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-router.get('/myMessages/:firstUser/:secondUser', (req, res) => {
-    const firstUser = req.params.firstUser;
-    const secondUser = req.params.secondUser;
+router.get('/myMessages/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
 
-    pool.query(`SELECT * FROM message WHERE sender = $1 AND
-        receiver = $2 OR receiver = $1 AND sender = $2`, 
-        [firstUser, secondUser], (error, results) => {
+    pool.query('SELECT * FROM message WHERE chat_id = $1', 
+        [chatId], (error, results) => {
             if (error) {
                 res.status(500).json({
                     Error: error.detail
@@ -24,13 +22,13 @@ router.get('/myMessages/:firstUser/:secondUser', (req, res) => {
 });
 
 router.post('/sendMessage', (req, res) => {
-    const { senderId, receiverId, textMessage, photoMessage, 
-    videoMessage, audioMessage } = req.body;
+    const { sender, receiver, text_message,
+    chat_id, sender_photo, receiver_photo } = req.body;
 
     pool.query(`INSERT INTO message (sender, receiver, text_message,
-        photo_message, video_message, audio_message) VALUES ($1, 
-        $2, $3, $4, $5, $6)`, [senderId, receiverId, textMessage,
-        photoMessage, videoMessage, audioMessage], (error, results) => {
+        chat_id, sender_photo, receiver_photo) VALUES ($1, 
+        $2, $3, $4, $5, $6) RETURNING *`, [sender, receiver, text_message,
+        chat_id, sender_photo, receiver_photo], (error, results) => {
             if (error) { 
                 res.status(500).json({
                     Error: error.detail
@@ -38,7 +36,8 @@ router.post('/sendMessage', (req, res) => {
             };
 
             res.status(201).json({
-                Success: 'Message sent successfully!'
+                Success: 'Message sent successfully!',
+                message: results.rows[0]
             });
         }
     );
