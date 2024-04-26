@@ -2,13 +2,30 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-router.get('/usersInChat/:userId/:receiverId', (req, res) => {
+router.get('/myChat/:userId', (req, res) => {
+    const userId = req.params.userId;
+
+    pool.query('SELECT * FROM chat WHERE user_id = $1', [userId], 
+        (error, results) => {
+        if (error) {
+            res.status(500).json({
+                Error: error.detail
+            });
+        };
+
+        res.status(200).json({
+            count: results.rows.length,
+            chats: results.rows
+        });
+    });
+});
+
+router.get('/checkUserExists/:userId/:receiverId', (req, res) => {
     const userId = req.params.userId;
     const receiverId = req.params.receiverId;
 
-    pool.query(`SELECT * FROM chat WHERE user_id = $1 AND 
-        chat_receiver_id = $2 OR user_id = $2 AND 
-        chat_receiver_id = $1`, [userId, receiverId], 
+    pool.query(`SELECT * FROM chat WHERE user_id = $1 AND
+        chat_receiver_id = $2`, [userId, receiverId],
         (error, results) => {
         if (error) {
             res.status(500).json({
@@ -17,13 +34,13 @@ router.get('/usersInChat/:userId/:receiverId', (req, res) => {
         };
 
         if (results.rows.length) {
-            res.status(200).json({
-                receiver_in_chat: 'This message receiver is already in your chat and you are in his chat!',
-                chats: results.rows
+            res.json({
+                user_exists: 'This is user is already in your chat!',
+                chat: results.rows[0]
             });
         } else {
             res.status(404).json({
-                not_found: 'This message receiver is not in your chat!'
+                not_found: 'User does not exist in your chat!'
             });
         };
     });
@@ -33,12 +50,16 @@ router.post('/createChat/:userId/:receiverId', (req, res) => {
     const userId = req.params.userId;
     const receiverId = req.params.receiverId;
 
-    const { last_message, last_message_time } = req.body;
+    const { user_name, user_photo, chat_receiver_name, 
+    chat_receiver_photo, last_message, last_message_time } = req.body;
 
     pool.query(`INSERT INTO chat (user_id, chat_receiver_id,
-        last_message, last_message_time) VALUES ($1, $2, $3, $4)
-        RETURNING *`,
-        [userId, receiverId, last_message, last_message_time],
+        last_message, last_message_time, user_name, user_photo,
+        chat_receiver_name, chat_receiver_photo) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [userId, receiverId, last_message, last_message_time, 
+        user_name, user_photo, chat_receiver_name, 
+        chat_receiver_photo],
         (error, results) => {
         if (error) {
             res.status(500).json({

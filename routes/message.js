@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-router.get('/myMessages/:chatId', (req, res) => {
-    const chatId = req.params.chatId;
+router.get('/myMessages/:userId/:receiverId', (req, res) => {
+    const userId = req.params.userId;
+    const receiverId = req.params.receiverId;
 
-    pool.query('SELECT * FROM message WHERE chat_id = $1', 
-        [chatId], (error, results) => {
+    pool.query(`SELECT * FROM message WHERE sender_id = $1 AND
+        receiver_id = $2 OR sender_id = $2 AND receiver_id = $1
+        ORDER BY timestamp`, 
+        [userId, receiverId], (error, results) => {
             if (error) {
                 res.status(500).json({
                     Error: error.detail
@@ -21,14 +24,55 @@ router.get('/myMessages/:chatId', (req, res) => {
     );
 });
 
-router.post('/sendMessage', (req, res) => {
-    const { sender, receiver, text_message,
-    chat_id, sender_photo, receiver_photo } = req.body;
+router.get('/lastMessage/:userId/:receiverId', (req, res) => {
+    const userId = req.params.userId;
+    const receiverId = req.params.receiverId;
 
-    pool.query(`INSERT INTO message (sender, receiver, text_message,
-        chat_id, sender_photo, receiver_photo) VALUES ($1, 
-        $2, $3, $4, $5, $6) RETURNING *`, [sender, receiver, text_message,
-        chat_id, sender_photo, receiver_photo], (error, results) => {
+    pool.query(`SELECT * FROM message WHERE sender_id = $2 AND
+        receiver_id = $1 ORDER BY timestamp DESC LIMIT 1`, 
+        [userId, receiverId], (error, results) => {
+            if (error) {
+                res.status(500).json({
+                    Error: error.detail
+                });
+            };
+
+            res.status(200).json({
+                count: results.rows.length,
+                message: results.rows[0]
+            });
+        }
+    );
+});
+
+router.get('/unread/:userId/:receiverId', (req, res) => {
+    const userId = req.params.userId;
+    const receiverId = req.params.receiverId;
+
+    pool.query(`SELECT * FROM message WHERE sender_id = $1 AND
+        receiver_id = $2 AND seen = false`, [receiverId, userId],
+        (error, results) => {
+        if (error) {
+            res.status(500).json({
+                Error: error.detail
+            });
+        };
+
+        res.status(200).json({
+            count: results.rows.length
+        });
+    });
+});
+
+router.post('/sendMessage/:senderId/:receiverId', (req, res) => {
+    const senderId = req.params.senderId;
+    const receiverId = req.params.receiverId;
+
+    const { content } = req.body;
+
+    pool.query(`INSERT INTO message (sender_id, receiver_id,
+        content) VALUES ($1, $2, $3) RETURNING *`, 
+        [senderId, receiverId, content], (error, results) => {
             if (error) { 
                 res.status(500).json({
                     Error: error.detail
@@ -43,23 +87,22 @@ router.post('/sendMessage', (req, res) => {
     );
 });
 
-router.put('/updateStatus/:messageId', (req, res) => {
+router.put('/updateSeen/:messageId', (req, res) => {
     const messageId = req.params.messageId;
-    const { status } = req.body;
+    const { seen } = req.body;
 
-    pool.query(`UPDATE message SET status = $1 WHERE id = $2`, [status, messageId],
-        (error, results) => {
-            if (error) {
-                res.status(500).json({
-                    Error: error.detail
-                });
-            };
-
-            res.json({
-                Success: 'Message status updated!'
+    pool.query('UPDATE message SET seen = $1 WHERE id = $2', 
+        [seen, messageId], (error, results) => {
+        if (error) {
+            res.status(500).json({
+                Error: error.detail
             });
-        }
-    );
+        };
+
+        res.json({
+            Success: 'Message updated successfully!'
+        });
+    });
 });
 
 module.exports = router;
