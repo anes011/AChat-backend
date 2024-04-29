@@ -5,7 +5,8 @@ const pool = require('../db');
 router.get('/myChat/:userId', (req, res) => {
     const userId = req.params.userId;
 
-    pool.query('SELECT * FROM chat WHERE user_id = $1', [userId], 
+    pool.query(`SELECT * FROM chat WHERE user_id = $1 OR
+        chat_receiver_id = $1`, [userId], 
         (error, results) => {
         if (error) {
             res.status(500).json({
@@ -20,12 +21,13 @@ router.get('/myChat/:userId', (req, res) => {
     });
 });
 
-router.get('/checkUserExists/:userId/:receiverId', (req, res) => {
+router.get('/checkChatExists/:userId/:receiverId', (req, res) => {
     const userId = req.params.userId;
     const receiverId = req.params.receiverId;
 
     pool.query(`SELECT * FROM chat WHERE user_id = $1 AND
-        chat_receiver_id = $2`, [userId, receiverId],
+        chat_receiver_id = $2 OR user_id = $2 AND
+        chat_receiver_id = $1`, [userId, receiverId],
         (error, results) => {
         if (error) {
             res.status(500).json({
@@ -35,31 +37,29 @@ router.get('/checkUserExists/:userId/:receiverId', (req, res) => {
 
         if (results.rows.length) {
             res.json({
-                user_exists: 'This is user is already in your chat!',
+                chat_exists: 'A chat exists between these two users!',
                 chat: results.rows[0]
             });
         } else {
             res.status(404).json({
-                not_found: 'User does not exist in your chat!'
+                not_found: 'Chat does not exist!'
             });
         };
     });
 });
 
-router.post('/createChat/:userId/:receiverId', (req, res) => {
-    const userId = req.params.userId;
+router.post('/createChat/:creatorId/:receiverId', (req, res) => {
+    const creatorId = req.params.creatorId;
     const receiverId = req.params.receiverId;
 
     const { user_name, user_photo, chat_receiver_name, 
-    chat_receiver_photo, last_message, last_message_time } = req.body;
+    chat_receiver_photo } = req.body;
 
-    pool.query(`INSERT INTO chat (user_id, chat_receiver_id,
-        last_message, last_message_time, user_name, user_photo,
-        chat_receiver_name, chat_receiver_photo) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [userId, receiverId, last_message, last_message_time, 
-        user_name, user_photo, chat_receiver_name, 
-        chat_receiver_photo],
+    pool.query(`INSERT INTO chat (creator_id, chat_receiver_id, 
+        user_name, user_photo, chat_receiver_name, chat_receiver_photo) 
+        VALUES ($1, $2, $3, $4, $5, $6)`,
+        [creatorId, receiverId, user_name, user_photo, 
+        chat_receiver_name, chat_receiver_photo],
         (error, results) => {
         if (error) {
             res.status(500).json({
