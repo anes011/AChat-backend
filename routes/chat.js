@@ -5,7 +5,7 @@ const pool = require('../db');
 router.get('/myChat/:userId', (req, res) => {
     const userId = req.params.userId;
 
-    pool.query(`SELECT * FROM chat WHERE user_id = $1 OR
+    pool.query(`SELECT * FROM chat WHERE creator_id = $1 OR
         chat_receiver_id = $1`, [userId], 
         (error, results) => {
         if (error) {
@@ -21,13 +21,10 @@ router.get('/myChat/:userId', (req, res) => {
     });
 });
 
-router.get('/checkChatExists/:userId/:receiverId', (req, res) => {
-    const userId = req.params.userId;
-    const receiverId = req.params.receiverId;
+router.get('/chatById/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
 
-    pool.query(`SELECT * FROM chat WHERE user_id = $1 AND
-        chat_receiver_id = $2 OR user_id = $2 AND
-        chat_receiver_id = $1`, [userId, receiverId],
+    pool.query('SELECT * FROM chat WHERE id = $1', [chatId],
         (error, results) => {
         if (error) {
             res.status(500).json({
@@ -35,16 +32,9 @@ router.get('/checkChatExists/:userId/:receiverId', (req, res) => {
             });
         };
 
-        if (results.rows.length) {
-            res.json({
-                chat_exists: 'A chat exists between these two users!',
-                chat: results.rows[0]
-            });
-        } else {
-            res.status(404).json({
-                not_found: 'Chat does not exist!'
-            });
-        };
+        res.status(200).json({
+            chat: results.rows[0]
+        });
     });
 });
 
